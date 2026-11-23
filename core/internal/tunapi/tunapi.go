@@ -17,6 +17,7 @@
 // Protocol 2 added the programs that skip the VPN (open's Programs, and
 // programs to change them while the TUN runs) and udp_refused. Protocol 3
 // added open's UDPPorts: the UDP the core takes, on the proxy's UDP ASSOCIATE.
+// Protocol 4 adds DirectUDP to open and programs for global direct UDP.
 package tunapi
 
 import (
@@ -33,7 +34,7 @@ import (
 // it still speaks. A change that an older peer would misread raises
 // Protocol; dropping support for an old peer raises MinProtocol.
 const (
-	Protocol    = 3
+	Protocol    = 4
 	MinProtocol = 1
 )
 
@@ -119,6 +120,8 @@ type Message struct {
 	// UDPPorts (open) are the UDP destination ports the service sends to the
 	// core, on the SOCKS5 server's UDP ASSOCIATE; it refuses UDP to others.
 	UDPPorts []PortRange `json:"udp_ports,omitempty"`
+	// DirectUDP (protocol 4, open/programs) sends public UDP directly.
+	DirectUDP bool `json:"direct_udp,omitempty"`
 	// MTU (open) is the adapter's MTU (tun.mtu); 0 keeps the service's own.
 	MTU int `json:"mtu,omitempty"`
 	// Code and Message (error, failed) say why.
