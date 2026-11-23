@@ -83,6 +83,10 @@ type Tun struct {
 	// Programs skip the VPN while the TUN runs: the TUN service sends their
 	// traffic directly, outside it (Windows and Linux).
 	Programs []TunProgram `json:"programs"`
+	// DirectUDP sends public UDP outside Mozilla's tunnel in desktop TUN
+	// mode; DNS ports 53/853 are never sent directly. Off by default because
+	// the destination can see the user's real IP.
+	DirectUDP bool `json:"direct_udp,omitempty"`
 	// QUIC carries apps' QUIC (UDP to port 443) through the VPN (the phone's
 	// too); by default it is refused, and apps fall back to TCP.
 	QUIC bool `json:"quic,omitempty"`
