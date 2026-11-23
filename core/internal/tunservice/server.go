@@ -250,7 +250,7 @@ func (s *Server) serveConn(raw net.Conn) {
 			case tunapi.TypeRoute:
 				out = s.route(c)
 			case tunapi.TypePrograms:
-				out = s.programs(c, m.Programs)
+				out = s.programs(c, m.Programs, m.DirectUDP)
 			default:
 				s.closeSession(c)
 				out = tunapi.Message{Type: tunapi.TypeClosed}
@@ -282,6 +282,9 @@ func (s *Server) open(c *tunapi.Conn, m tunapi.Message, protocol int) tunapi.Mes
 	// The service connects nowhere but to the core on this computer.
 	if proxy, err := netip.ParseAddrPort(m.Proxy); err != nil || !proxy.Addr().IsLoopback() {
 		return tunapi.Errorf(tunapi.CodeBadRequest, "the proxy must be a loopback address and port, not %q", m.Proxy)
+	}
+	if m.DirectUDP && protocol < 4 {
+		return tunapi.Errorf(tunapi.CodeProtocol, "direct UDP needs protocol 4")
 	}
 	client, err := s.clientPath(c.Raw())
 	if err != nil {
@@ -347,11 +350,15 @@ func (s *Server) route(c *tunapi.Conn) tunapi.Message {
 }
 
 // programs replaces the programs that skip the VPN in c's session.
-func (s *Server) programs(c *tunapi.Conn, programs []tunapi.Program) tunapi.Message {
+func (s *Server) programs(c *tunapi.Conn, programs []tunapi.Program, directUDP bool) tunapi.Message {
 	sess := s.sessionOf(c)
 	if sess == nil || sess.dev == nil {
 		return tunapi.Errorf(tunapi.CodeBadRequest, "open the TUN session first")
 	}
+	if directUDP && sess.protocol < 4 {
+		return tunapi.Errorf(tunapi.CodeProtocol, "direct UDP needs protocol 4")
+	}
+	sess.directUDP.Store(directUDP)
 	sess.setPrograms(programs)
 	return tunapi.Message{Type: tunapi.TypeProgramsSet}
 }

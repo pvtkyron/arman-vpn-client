@@ -31,6 +31,26 @@ func TestLoadCreatesDefaultConfig(t *testing.T) {
 	}
 }
 
+// Global direct UDP is opt-in and survives a config save and reload.
+func TestDirectUDPIsOffByDefaultAndPersists(t *testing.T) {
+	path := filepath.Join(t.TempDir(), FileName)
+	cfg, _, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Tun.DirectUDP {
+		t.Fatal("global direct UDP must be off by default")
+	}
+	cfg.Tun.DirectUDP = true
+	if err := Save(path, cfg); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _, err := Load(path)
+	if err != nil || !loaded.Tun.DirectUDP {
+		t.Fatalf("direct UDP did not persist: enabled=%v err=%v", loaded.Tun.DirectUDP, err)
+	}
+}
+
 func TestLoadKeepsDefaultsForOmittedFields(t *testing.T) {
 	path := filepath.Join(t.TempDir(), FileName)
 	if err := os.WriteFile(path, []byte(`{"proxy":{"listen":"127.0.0.1:2080","country":"DE"},"accounts":{"switch_threshold_percent":80}}`), 0o600); err != nil {

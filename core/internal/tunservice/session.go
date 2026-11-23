@@ -30,6 +30,8 @@ type session struct {
 	// udpPorts.
 	associate tun.UDPDialer
 	udpPorts  []tunapi.PortRange
+	// directUDP changes atomically with the core's live bypass settings.
+	directUDP atomic.Bool
 	// protocol is the protocol version the core speaks.
 	protocol int
 	// trusted pass the DNS filters: the service and the core.
@@ -104,6 +106,7 @@ func newSession(s *Server, owner *tunapi.Conn, client string, protocol int, m tu
 		ctx:      ctx,
 		cancel:   cancel,
 	}
+	sess.directUDP.Store(m.DirectUDP && protocol >= 4)
 	sess.setPrograms(m.Programs)
 	cfg := tunstack.Config{
 		Name:  AdapterName,

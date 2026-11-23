@@ -19,7 +19,7 @@ func TestMessagesGoAcrossOneLineEach(t *testing.T) {
 	client, server := pipePair(t)
 	sent := []Message{
 		Hello("1.2.3"),
-		{Type: TypeOpen, Proxy: "127.0.0.1:5000", Username: "u", Password: "p"},
+		{Type: TypeOpen, Proxy: "127.0.0.1:5000", Username: "u", Password: "p", DirectUDP: true},
 		{Type: TypeOpened, Interface: &Interface{Name: "Arman VPN", Index: 31, LUID: 1 << 40}},
 	}
 	go func() {
@@ -35,7 +35,7 @@ func TestMessagesGoAcrossOneLineEach(t *testing.T) {
 		if err != nil {
 			t.Fatalf("message %d: %v", i, err)
 		}
-		if got.Type != want.Type || got.Proxy != want.Proxy || got.Version != want.Version ||
+		if got.Type != want.Type || got.Proxy != want.Proxy || got.Version != want.Version || got.DirectUDP != want.DirectUDP ||
 			(want.Interface != nil && (got.Interface == nil || *got.Interface != *want.Interface)) {
 			t.Fatalf("message %d: got %+v, want %+v", i, got, want)
 		}

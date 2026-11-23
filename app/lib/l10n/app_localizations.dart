@@ -3140,6 +3140,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The test ended before a complete result was received.'**
   String get relayTestInterrupted;
+
+  /// Send public UDP outside the desktop TUN (real IP visible).
+  ///
+  /// In en, this message translates to:
+  /// **'Direct UDP (all apps)'**
+  String get tunDirectUdp;
+
+  /// Description and privacy warning for global direct UDP.
+  ///
+  /// In en, this message translates to:
+  /// **'Send public UDP traffic over your regular internet connection instead of the VPN. TCP stays in the VPN. DNS ports 53/853 are not sent directly. UDP destinations can see your real IP.'**
+  String get tunDirectUdpHint;
 }
 
 class _AppLocalizationsDelegate

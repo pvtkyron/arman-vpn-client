@@ -304,7 +304,15 @@ func (s *session) carriesUDP(dst netip.AddrPort) bool {
 // not QUIC (port 443), so that it falls back to TCP through the VPN. Anything
 // else goes through the VPN if it can; otherwise it is refused, and a call or
 // a game told to the core (the app offers to send the program directly).
+// Global direct UDP sends public UDP, including QUIC, off the tunnel, while
+// DNS ports 53/853 and local or filtering addresses retain safe handling.
 func (s *session) udpRoute(source, dst netip.AddrPort) udpVerdict {
+	addr := dst.Addr().Unmap()
+	if s.directUDP.Load() && dst.Port() != 53 && dst.Port() != 853 &&
+		!isFilterAddress(addr) &&
+		(tun.IsFake(addr) || (addr.IsGlobalUnicast() && !addr.IsPrivate())) {
+		return udpDirect
+	}
 	set := s.programSet()
 	carried := s.carriesUDP(dst)
 	call := callLike(dst)

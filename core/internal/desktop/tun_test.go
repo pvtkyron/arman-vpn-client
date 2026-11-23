@@ -19,13 +19,16 @@ import (
 
 // fakeHost is the daemon as tunSync sees it, recording what it was told.
 type fakeHost struct {
-	wanted   atomic.Bool
-	mu       sync.Mutex
-	log      []string
-	status   service.TunStatus
-	programs []config.TunProgram
-	refused  []string
+	wanted    atomic.Bool
+	mu        sync.Mutex
+	log       []string
+	status    service.TunStatus
+	programs  []config.TunProgram
+	directUDP atomic.Bool
+	refused   []string
 }
+
+func (h *fakeHost) TunDirectUDP() bool { return h.directUDP.Load() }
 
 func (h *fakeHost) TunMTU() int { return 0 }
 
@@ -228,11 +231,15 @@ func TestTheTUNFollowsTheModeInOrder(t *testing.T) {
 func TestTheServiceGetsTheProgramsThatSkipTheVPN(t *testing.T) {
 	host, svc := setup(t, true)
 	host.setPrograms(config.TunProgram{Name: "steam.exe"})
+	host.directUDP.Store(true)
 	changed, closed := make(chan []tunapi.Program, 1), make(chan struct{})
 	svc.handlers <- func(c *tunapi.Conn) {
 		expect(t, c, tunapi.TypeHello)
 		c.Send(tunapi.Hello("2.0.0"))
 		open := expect(t, c, tunapi.TypeOpen)
+		if !open.DirectUDP {
+			t.Error("global direct UDP not present on open")
+		}
 		if want := []tunapi.Program{{Name: "steam.exe"}}; !slices.Equal(open.Programs, want) {
 			t.Errorf("opened with %+v, want %+v", open.Programs, want)
 		}
@@ -241,6 +248,9 @@ func TestTheServiceGetsTheProgramsThatSkipTheVPN(t *testing.T) {
 		c.Send(tunapi.Message{Type: tunapi.TypeRouted})
 		c.Send(tunapi.Message{Type: tunapi.TypeUDPRefused, Program: "Discord.exe", Path: `C:\Apps\Discord.exe`})
 		m := expect(t, c, tunapi.TypePrograms)
+		if !m.DirectUDP {
+			t.Error("program update lost direct UDP flag")
+		}
 		c.Send(tunapi.Message{Type: tunapi.TypeProgramsSet})
 		changed <- m.Programs
 		if m, err := c.Receive(); err == nil && m.Type == tunapi.TypeClose {
@@ -271,6 +281,9 @@ func TestTheServiceGetsTheProgramsThatSkipTheVPN(t *testing.T) {
 		t.Fatal("the TUN was not closed")
 	}
 
+	// Protocol 1 cannot accept Direct UDP: turn the global switch off so
+	// this test still verifies the older service's programs-only behavior.
+	host.directUDP.Store(false)
 	// Protocol 1: the open carries the programs (ignored there), and a
 	// change sends nothing until the close.
 	old := make(chan string, 1)

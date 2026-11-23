@@ -70,6 +70,44 @@ func TestUDPRoutes(t *testing.T) {
 	}
 }
 
+// Global direct UDP takes public ports Mozilla does not carry, including QUIC,
+// without identifying the sender. DNS, local and filter addresses stay blocked.
+func TestGlobalDirectUDP(t *testing.T) {
+	lookups := fakeOwners(t, nil)
+	s, core := coreSession(t)
+	s.udpPorts = testUDPPorts
+	s.directUDP.Store(true)
+	for _, tc := range []struct {
+		dst  string
+		want udpVerdict
+	}{
+		{"1.2.3.4:19302", udpDirect},
+		{"1.2.3.4:3478", udpDirect},
+		{"1.2.3.4:443", udpDirect},
+		{"198.18.0.9:19302", udpDirect},
+		{"[2001:4860:4860::1]:19302", udpDirect},
+		{"1.2.3.4:53", udpRefused},
+		{"1.2.3.4:853", udpRefused},
+		{"192.168.1.5:19302", udpRefused},
+		{"10.10.34.35:19302", udpRefused},
+		{"239.255.255.250:1900", udpRefused},
+	} {
+		if got := s.udpRoute(port(1000), netip.MustParseAddrPort(tc.dst)); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.dst, got, tc.want)
+		}
+	}
+	if lookups.Load() != 0 {
+		t.Fatal("global direct UDP looked up program owners")
+	}
+	if got := told(t, core); got != "" {
+		t.Fatalf("global direct UDP falsely reported a refused program: %s", got)
+	}
+	s.directUDP.Store(false)
+	if got := s.udpRoute(port(1000), netip.MustParseAddrPort("1.2.3.4:19302")); got != udpRefused {
+		t.Fatalf("turning direct UDP off did not restore the original route: %v", got)
+	}
+}
+
 // Without programs a carried packet needs no lookup, on the packet path.
 func TestCarriedUDPNeedsNoLookup(t *testing.T) {
 	lookups := fakeOwners(t, nil)

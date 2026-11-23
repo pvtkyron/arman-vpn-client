@@ -1071,5 +1071,7 @@
   "relayTestPassed": "Relay is ready",
   "relayTestFailed": "Relay health could not be confirmed",
   "relayTestCopy": "Copy report",
-  "relayTestInterrupted": "The test ended before a complete result was received."
+  "relayTestInterrupted": "The test ended before a complete result was received.",
+  "tunDirectUdp": "Direct UDP (all apps)",
+  "tunDirectUdpHint": "Send public UDP traffic over your regular internet connection instead of the VPN. TCP stays in the VPN. DNS ports 53/853 are not sent directly. UDP destinations can see your real IP."
 }
