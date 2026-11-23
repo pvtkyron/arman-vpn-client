@@ -195,6 +195,9 @@ func (d *Daemon) SetTunStatus(s TunStatus) {
 // TunMTU is tun.mtu: the VPN interface's MTU, 0 for its own.
 func (d *Daemon) TunMTU() int { return d.config().Tun.MTU }
 
+// TunDirectUDP enables direct public UDP in desktop TUN mode.
+func (d *Daemon) TunDirectUDP() bool { return d.config().Tun.DirectUDP }
+
 // TunPrograms is tun.programs, which the TUN sends directly.
 func (d *Daemon) TunPrograms() []config.TunProgram {
 	return slices.Clone(d.config().Tun.Programs)
