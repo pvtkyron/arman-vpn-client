@@ -36,6 +36,7 @@ type tunHost interface {
 	ReconnectUpstream()
 	TunPrograms() []config.TunProgram
 	TunMTU() int
+	TunDirectUDP() bool
 	VPNUDPPorts() []proxy.PortRange
 	NoteRefusedUDP(program, path string)
 }
@@ -77,7 +78,8 @@ type tunSync struct {
 	// protocol is the session's protocol version; programs are the
 	// programs that skip the VPN as the service last got them.
 	protocol int
-	programs []tunapi.Program
+	programs  []tunapi.Program
+	directUDP bool
 }
 
 func newTunSync(host tunHost, bundled string) *tunSync {
@@ -183,14 +185,21 @@ func (t *tunSync) syncPrograms() {
 	if t.conn == nil || t.protocol < 2 {
 		return
 	}
-	programs := tunPrograms(t.host.TunPrograms())
-	if slices.Equal(programs, t.programs) {
+	directUDP := t.host.TunDirectUDP()
+	if directUDP && t.protocol < 4 {
+		// Never report an active TUN when an old service ignores the setting.
+		t.stop()
+		t.fail(failed(service.TunCodeOutdated, "Direct UDP requires a TUN service supporting protocol 4"), "")
 		return
 	}
-	// A failed send ends the connection, and the events say so.
-	if t.conn.Send(tunapi.Message{Type: tunapi.TypePrograms, Programs: programs}) == nil {
-		t.programs = programs
-		logx.Info("TUN: programs that skip the VPN updated count=%d", len(programs))
+	programs := tunPrograms(t.host.TunPrograms())
+	if slices.Equal(programs, t.programs) && directUDP == t.directUDP {
+		return
+	}
+	// Apply both options together while TUN is running.
+	if t.conn.Send(tunapi.Message{Type: tunapi.TypePrograms, Programs: programs, DirectUDP: directUDP}) == nil {
+		t.programs, t.directUDP = programs, directUDP
+		logx.Info("TUN: bypass settings updated programs=%d direct_udp=%v", len(programs), directUDP)
 	}
 }
 
@@ -216,6 +225,12 @@ func (t *tunSync) start(ctx context.Context) {
 		return
 	}
 	serviceVersion := peer.Version
+	directUDP := t.host.TunDirectUDP()
+	if directUDP && tunapi.Common(peer.Protocol, peer.MinProtocol) < 4 {
+		conn.Close()
+		t.fail(failed(service.TunCodeOutdated, "Direct UDP requires a TUN service supporting protocol 4"), serviceVersion)
+		return
+	}
 	addr, user, password, err := t.host.OpenTunListener()
 	if err != nil {
 		conn.Close()
@@ -229,7 +244,10 @@ func (t *tunSync) start(ctx context.Context) {
 		udpPorts = append(udpPorts, tunapi.PortRange{From: r.From, To: r.To})
 	}
 	// tun.mtu; a service of an older protocol keeps its own.
-	reply, err := t.ask(conn, tunapi.Message{Type: tunapi.TypeOpen, Proxy: addr, Username: user, Password: password, Programs: programs, UDPPorts: udpPorts, MTU: t.host.TunMTU()})
+	reply, err := t.ask(conn, tunapi.Message{
+		Type: tunapi.TypeOpen, Proxy: addr, Username: user, Password: password,
+		Programs: programs, UDPPorts: udpPorts, MTU: t.host.TunMTU(), DirectUDP: directUDP,
+	})
 	if err == nil && (reply.Type != tunapi.TypeOpened || reply.Interface == nil) {
 		err = fmt.Errorf("unexpected reply %q", reply.Type)
 	}
@@ -278,7 +296,7 @@ func (t *tunSync) start(ctx context.Context) {
 		}
 	}()
 	t.conn, t.events = conn, events
-	t.protocol, t.programs = tunapi.Common(peer.Protocol, peer.MinProtocol), programs
+	t.protocol, t.programs, t.directUDP = tunapi.Common(peer.Protocol, peer.MinProtocol), programs, directUDP
 	t.failures, t.retryAt = 0, time.Time{}
 	logx.Info("TUN on adapter=%q index=%d", iface.Name, iface.Index)
 	t.host.SetTunStatus(service.TunStatus{State: service.TunOn, ServiceVersion: serviceVersion})
