@@ -1780,4 +1780,11 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get relayTestInterrupted =>
       'Pengujian berakhir sebelum hasil lengkap diterima.';
+
+  @override
+  String get tunDirectUdp => 'Direct UDP (all apps)';
+
+  @override
+  String get tunDirectUdpHint =>
+      'Send public UDP traffic over your regular internet connection instead of the VPN. TCP stays in the VPN. DNS ports 53/853 are not sent directly. UDP destinations can see your real IP.';
 }
