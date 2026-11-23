@@ -19,13 +19,13 @@ import (
 
 // fakeHost is the daemon as tunSync sees it, recording what it was told.
 type fakeHost struct {
-	wanted   atomic.Bool
-	mu       sync.Mutex
-	log      []string
-	status   service.TunStatus
-	programs []config.TunProgram
+	wanted    atomic.Bool
+	mu        sync.Mutex
+	log       []string
+	status    service.TunStatus
+	programs  []config.TunProgram
 	directUDP atomic.Bool
-	refused  []string
+	refused   []string
 }
 
 func (h *fakeHost) TunDirectUDP() bool { return h.directUDP.Load() }
@@ -248,7 +248,9 @@ func TestTheServiceGetsTheProgramsThatSkipTheVPN(t *testing.T) {
 		c.Send(tunapi.Message{Type: tunapi.TypeRouted})
 		c.Send(tunapi.Message{Type: tunapi.TypeUDPRefused, Program: "Discord.exe", Path: `C:\Apps\Discord.exe`})
 		m := expect(t, c, tunapi.TypePrograms)
-		if !m.DirectUDP { t.Error("program update lost direct UDP flag") }
+		if !m.DirectUDP {
+			t.Error("program update lost direct UDP flag")
+		}
 		c.Send(tunapi.Message{Type: tunapi.TypeProgramsSet})
 		changed <- m.Programs
 		if m, err := c.Receive(); err == nil && m.Type == tunapi.TypeClose {
@@ -279,6 +281,9 @@ func TestTheServiceGetsTheProgramsThatSkipTheVPN(t *testing.T) {
 		t.Fatal("the TUN was not closed")
 	}
 
+	// Protocol 1 cannot accept Direct UDP: turn the global switch off so
+	// this test still verifies the older service's programs-only behavior.
+	host.directUDP.Store(false)
 	// Protocol 1: the open carries the programs (ignored there), and a
 	// change sends nothing until the close.
 	old := make(chan string, 1)
