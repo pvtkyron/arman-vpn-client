@@ -199,6 +199,7 @@ List<(SettingsSection, String)> settingsIndex(AppLocalizations l) => [
   (SettingsSection.routing, l.testDestination),
   (SettingsSection.tun, l.sectionTun),
   (SettingsSection.tun, l.tunPrograms),
+  (SettingsSection.tun, l.tunDirectUdp),
   (SettingsSection.tun, l.udpNoticeSetting),
   (SettingsSection.dns, l.dnsCustom),
   (SettingsSection.dns, l.dnsFallback),
@@ -429,13 +430,8 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// The TUN settings have something to show: the programs that skip the
-  /// VPN (Windows and Linux).
-  bool get _hasTunSection {
-    final status = _core.status;
-    return (status?.tunSupported ?? false) &&
-        (status?.tun?.programsSupported ?? false);
-  }
+  /// Show global TUN options on every supported desktop platform.
+  bool get _hasTunSection => _core.status?.tunSupported ?? false;
 
   @override
   Widget build(BuildContext context) {
@@ -1336,21 +1332,43 @@ class _SettingsPageState extends State<SettingsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (programsHere) ...[
-          Panel(
-            title: l.sectionTun,
-            icon: Icons.vpn_lock_rounded,
-            // The home page's card when a program's call or game was
-            // refused.
-            child: _Row(
-              icon: Icons.call_rounded,
-              label: l.udpNoticeSetting,
-              child: Switch(
-                value: s.udpNotice,
-                onChanged: (v) => s.update(udpNotice: v),
+        Panel(
+          title: l.sectionTun,
+          icon: Icons.vpn_lock_rounded,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _Row(
+                icon: Icons.alt_route_rounded,
+                label: l.tunDirectUdp,
+                child: Switch(
+                  value: _bool(['tun', 'direct_udp']),
+                  onChanged: _saving
+                      ? null
+                      : (on) => _save({['tun', 'direct_udp']: on}),
+                ),
               ),
-            ),
+              Text(
+                l.tunDirectUdpHint,
+                style: theme.textTheme.bodySmall?.copyWith(color: muted),
+              ),
+              if (programsHere) ...[
+                const SizedBox(height: 12),
+                // Offer to bypass a call or game's UDP after its port was
+                // refused, without changing all programs' UDP.
+                _Row(
+                  icon: Icons.call_rounded,
+                  label: l.udpNoticeSetting,
+                  child: Switch(
+                    value: s.udpNotice,
+                    onChanged: (v) => s.update(udpNotice: v),
+                  ),
+                ),
+              ],
+            ],
           ),
+        ),
+        if (programsHere) ...[
           const SizedBox(height: 16),
           Panel(
             title: l.tunPrograms,
