@@ -1793,4 +1793,11 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get relayTestInterrupted =>
       'La prueba terminó antes de recibir un resultado completo.';
+
+  @override
+  String get tunDirectUdp => 'Direct UDP (all apps)';
+
+  @override
+  String get tunDirectUdpHint =>
+      'Send public UDP traffic over your regular internet connection instead of the VPN. TCP stays in the VPN. DNS ports 53/853 are not sent directly. UDP destinations can see your real IP.';
 }
