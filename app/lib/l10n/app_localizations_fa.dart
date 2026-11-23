@@ -1766,4 +1766,11 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get relayTestInterrupted => 'تست پیش از دریافت نتیجه کامل متوقف شد.';
+
+  @override
+  String get tunDirectUdp => 'ارسال مستقیم UDP (همهٔ برنامه‌ها)';
+
+  @override
+  String get tunDirectUdpHint =>
+      'ترافیک UDP عمومی مستقیم از اینترنت اصلی می‌رود و TCP داخل VPN می‌ماند. پورت‌های DNS شمارهٔ ۵۳ و ۸۵۳ مستقیم ارسال نمی‌شوند. مقصدهای UDP می‌توانند IP واقعی شما را ببینند.';
 }
